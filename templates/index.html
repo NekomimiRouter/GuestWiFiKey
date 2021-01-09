@@ -17,12 +17,10 @@
             <div class="col-sm-12 col-md-6">
                 <div class="card mt-2">
                     <div class="card-body">
-                        <h5 class="card-title">{{.NetworkSSID}}</h5>
+                        <h5 class="card-title">SSID: {{.NetworkSSID}}</h5>
                         <p class="card-text">Scan the QR code below. 请扫描下方的二维码。</p>
                         <div id="network-qrcode" data-ssid="{{.NetworkSSID}}" data-psk="{{.NetworkPSK}}"></div>
-                        <hr />
-                        <p class="card-text"><b>SSID:</b> <span class="font-monospace">{{.NetworkSSID}}</span></p>
-                        <p class="card-text"><b>Key / 密码:</b> <span class="font-monospace">{{.NetworkPSK}}</span>
+                        <p class="card-text pt-2"><b>Key / 密码:</b> <span class="font-monospace">{{.NetworkPSK}}</span>
                     </div>
                 </div>
             </div>
@@ -53,8 +51,8 @@
                 var connectionString = "WIFI:S:" + escape(ssid) + ";T:WPA;P:" + escape(psk) + ";;";
                 new QRCode(document.getElementById('network-qrcode'), {
                     text: connectionString,
-                    width: 90,
-                    height: 90,
+                    width: 128,
+                    height: 128,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
                     correctLevel: QRCode.CorrectLevel.H,
