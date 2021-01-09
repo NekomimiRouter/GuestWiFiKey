@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"flag"
 	"log"
 	"math/big"
 	"os"
@@ -150,8 +151,19 @@ func (srv *GuestWirelessNetworkCredentialServer) Run() {
 
 // Application entry point
 func main() {
+	var radiusPsk string
+	flag.StringVar(&radiusPsk, "key", "", "RADIUS pre-shared key")
+
+	var keyRotationInterval int64
+	flag.Int64Var(&keyRotationInterval, "interval", 7200, "Key rotation interval")
+
+	flag.Parse()
+	if radiusPsk == "" {
+		log.Fatal("[APP] Missing RADIUS pre-shared key")
+	}
+
 	pskServer := GuestWirelessNetworkCredentialServer{}
-	pskServer.Initialize(`development`, 60)
+	pskServer.Initialize(radiusPsk, keyRotationInterval)
 
 	log.Printf("[APP] Starting PSK distribution RADIUS server on :1812")
 	go pskServer.Run()
