@@ -6,10 +6,12 @@ import (
 	"flag"
 	"log"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"layeh.com/radius/rfc2865"
@@ -33,6 +35,16 @@ type GuestWirelessNetworkCredentialServer struct {
 	TerminationChan chan bool
 	// Server hosts the RADIUS server instance
 	Server radius.PacketServer
+	// HTTPServer hosts the HTTP instance
+	HTTPServer http.Server
+}
+
+// GuestWirelessNetworkFrontendModel provides template data model for the frontend.
+type GuestWirelessNetworkFrontendModel struct {
+	// NetworkSSID is the network SSID.
+	NetworkSSID string
+	// NetworkPSK is the current PSK.
+	NetworkPSK string
 }
 
 // GenerateRandomASCIIString returns a securely generated random ASCII string.
@@ -97,7 +109,7 @@ func (srv *GuestWirelessNetworkCredentialServer) KeyUpdateRunner() {
 }
 
 // Initialize prepares the RADIUS instance.
-func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, keyInterval int64) {
+func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, networkSSID string, keyInterval int64) {
 	srv.KeyUpdateInterval = keyInterval
 	srv.TerminationChan = make(chan bool)
 
@@ -132,9 +144,36 @@ func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, ke
 		w.Write(responsePacket)
 	}
 
+	httpRequestHandler := func(w http.ResponseWriter, r *http.Request) {
+		var model GuestWirelessNetworkFrontendModel
+
+		srv.KeyUpdateMutex.RLock()
+		model.NetworkPSK = srv.TemporaryPsk
+		model.NetworkSSID = networkSSID
+		srv.KeyUpdateMutex.RUnlock()
+
+		t, err := template.ParseFiles("templates/index.html")
+		if err != nil {
+			log.Printf("[HTTP] Failed to parse HTML template: %v", err)
+			w.WriteHeader(500)
+			return
+		}
+
+		t.Execute(w, model)
+	}
+
 	srv.Server = radius.PacketServer{
 		Handler:      radius.HandlerFunc(radiusRequestHandler),
 		SecretSource: radius.StaticSecretSource([]byte(radiusPSK)),
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", http.HandlerFunc(httpRequestHandler))
+	mux.Handle("/index.html", http.HandlerFunc(httpRequestHandler))
+
+	srv.HTTPServer = http.Server{
+		Addr:    ":8089",
+		Handler: mux,
 	}
 }
 
@@ -144,15 +183,27 @@ func (srv *GuestWirelessNetworkCredentialServer) Run() {
 	go srv.KeyUpdateRunner()
 
 	// RADIUS server instance
-	if err := srv.Server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
+	go func() {
+		if err := srv.Server.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	// HTTP server instance
+	go func() {
+		if err := srv.HTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
 }
 
 // Application entry point
 func main() {
 	var radiusPsk string
 	flag.StringVar(&radiusPsk, "key", "", "RADIUS pre-shared key")
+
+	var networkSSID string
+	flag.StringVar(&networkSSID, "ssid", "", "Wireless network SSID")
 
 	var keyRotationInterval int64
 	flag.Int64Var(&keyRotationInterval, "interval", 7200, "Key rotation interval")
@@ -162,10 +213,15 @@ func main() {
 		log.Fatal("[APP] Missing RADIUS pre-shared key")
 	}
 
+	if networkSSID == "" {
+		log.Fatal("[APP] Missing network SSID")
+	}
+
 	pskServer := GuestWirelessNetworkCredentialServer{}
-	pskServer.Initialize(radiusPsk, keyRotationInterval)
+	pskServer.Initialize(radiusPsk, networkSSID, keyRotationInterval)
 
 	log.Printf("[APP] Starting PSK distribution RADIUS server on :1812")
+	log.Printf("[APP] Starting PSK distribution HTTP server on :8089")
 	go pskServer.Run()
 
 	// Setting up signal capturing
@@ -179,6 +235,12 @@ func main() {
 	defer cancel()
 	if err := pskServer.Server.Shutdown(ctx); err != nil {
 		log.Printf("[APP] Failed to gracefully shutdown RADIUS server")
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := pskServer.HTTPServer.Shutdown(ctx); err != nil {
+		log.Printf("[APP] Failed to gracefully shutdown HTTP server")
 	}
 
 	// Cancel the rotation task too

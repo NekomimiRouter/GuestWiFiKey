@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Guest Wi-Fi key information</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+</head>
+
+<body>
+    <div class="container py-3">
+        <h3>Sign in to Guest Wi-Fi / 登录到访客网络</h3>
+        <hr />
+        <div class="row">
+            <div class="col-sm-12 col-md-6">
+                <div class="card mt-2">
+                    <div class="card-body">
+                        <h5 class="card-title">{{.NetworkSSID}}</h5>
+                        <p class="card-text">Scan the QR code below. 请扫描下方的二维码。</p>
+                        <hr />
+                        <div id="network-qrcode" data-ssid="{{.NetworkSSID}}" data-psk="{{.NetworkPSK}}"></div>
+                        <hr />
+                        <p class="card-text"><b>SSID:</b> <span class="font-monospace">{{.NetworkSSID}}</span></p>
+                        <p class="card-text"><b>Key / 密码:</b> <span class="font-monospace">{{.NetworkPSK}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr />
+        <p><b>Attention / 注意:</b> The credentials provided will expire after a few hours. New
+            credentials
+            are required for reconnecting.
+            本页面的信息会在数小时后过期，过期后重新连接网络需要重新输入新凭据。
+        </p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/davidshimjs-qrcodejs@0.0.2/qrcode.min.js"
+        integrity="sha256-xUHvBjJ4hahBW8qN9gceFBibSFUzbe9PNttUvehITzY=" crossorigin="anonymous"></script>
+    <script type="application/javascript">
+        var escape = function escape() {
+            var str = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+            return str.replace(/([\\;,:"])/g, '\\$1');
+        };
+        var qrCodeContainer = document.getElementById('network-qrcode');
+        if (qrCodeContainer) {
+            var ssid = qrCodeContainer.getAttribute('data-ssid');
+            var psk = qrCodeContainer.getAttribute('data-psk');
+            if (ssid && psk) {
+                var connectionString = "WIFI:S:" + escape(ssid) + ";T:WPA;P:" + escape(psk) + ";;";
+                new QRCode(document.getElementById('network-qrcode'), {
+                    text: connectionString,
+                    width: 90,
+                    height: 90,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H,
+                });
+            }
+        }
+    </script>
+</body>
+
+</html>
