@@ -9,8 +9,8 @@
 </head>
 
 <body>
-    <div class="container py-3">
-        <h3>Sign in to Guest Wi-Fi / 登录到访客网络</h3>
+    <div class="container py-2">
+        <h2>Sign in to Guest Wi-Fi / 登录到访客网络</h2>
         <hr />
         <div class="row">
             <div class="col-sm-12 col-md-6">
@@ -18,7 +18,6 @@
                     <div class="card-body">
                         <h5 class="card-title">{{.NetworkSSID}}</h5>
                         <p class="card-text">Scan the QR code below. 请扫描下方的二维码。</p>
-                        <hr />
                         <div id="network-qrcode" data-ssid="{{.NetworkSSID}}" data-psk="{{.NetworkPSK}}"></div>
                         <hr />
                         <p class="card-text"><b>SSID:</b> <span class="font-monospace">{{.NetworkSSID}}</span></p>
