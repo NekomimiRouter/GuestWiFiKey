@@ -1,0 +1,4 @@
+bin/
+obj/
+config/
+__debug_bin
