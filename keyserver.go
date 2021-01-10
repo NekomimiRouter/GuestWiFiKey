@@ -148,8 +148,8 @@ func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, ne
 		var model GuestWirelessNetworkFrontendModel
 
 		srv.KeyUpdateMutex.RLock()
-		model.NetworkPSK = srv.TemporaryPsk
-		model.NetworkSSID = networkSSID
+		model.NetworkPSK = template.HTMLEscapeString(srv.TemporaryPsk)
+		model.NetworkSSID = template.HTMLEscapeString(networkSSID)
 		srv.KeyUpdateMutex.RUnlock()
 
 		t, err := template.ParseFiles("templates/index.html")
