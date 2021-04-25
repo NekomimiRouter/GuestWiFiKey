@@ -14,10 +14,10 @@ import (
 	"text/template"
 	"time"
 
-	"layeh.com/radius/rfc2865"
-
 	"layeh.com/radius"
+	"layeh.com/radius/rfc2865"
 	"layeh.com/radius/rfc2868"
+	"layeh.com/radius/vendors/aruba"
 )
 
 // GuestWirelessNetworkCredentialServer implements the RADIUS server
@@ -128,14 +128,20 @@ func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, ne
 		macIdentity := rfc2865.UserPassword_GetString(r.Packet)
 
 		if macIdentity == "" {
-			log.Printf("[RADIUS] Incoming RADIUS request from %v don't have valid identity", r.RemoteAddr)
+			log.Printf("[RADIUS][Warn] Incoming RADIUS request from %v don't have valid identity. Rejected", r.RemoteAddr)
 		} else {
 			log.Printf("[RADIUS] Issuing RADIUS response from %v to AP %v", macIdentity, r.RemoteAddr)
-			responsePacket = r.Response(radius.CodeAccessAccept)
 
 			srv.KeyUpdateMutex.RLock()
+			// For Cisco AiroNet/Meraki
 			if err := rfc2868.TunnelPassword_SetString(responsePacket, 0, srv.TemporaryPsk); err != nil {
-				log.Printf("[RADIUS] Failed to set tunnel password: %v", err)
+				log.Printf("[RADIUS][Cisco] Failed to set tunnel password: %v", err)
+				responsePacket = r.Response(radius.CodeAccessReject)
+			}
+
+			// For Aruba ClearPass MPSK
+			if err := aruba.ArubaMPSKPassphrase_AddString(responsePacket, srv.TemporaryPsk); err != nil {
+				log.Printf("[RADIUS][Aruba] Failed to set MPSK: %v", err)
 				responsePacket = r.Response(radius.CodeAccessReject)
 			}
 			srv.KeyUpdateMutex.RUnlock()
