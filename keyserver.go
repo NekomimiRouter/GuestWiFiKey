@@ -5,11 +5,9 @@ import (
 	"crypto/rand"
 	"flag"
 	"log"
-	"math/big"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"text/template"
 	"time"
@@ -51,27 +49,23 @@ type GuestWirelessNetworkFrontendModel struct {
 // It reads random numbers from crypto/rand and searches for printable characters.
 // It will return an error if the system's secure random number generator fails to
 // function correctly, in which case the caller must not continue.
-// From https://gist.github.com/denisbrodbeck/635a644089868a51eccd6ae22b2eb800
 func GenerateRandomASCIIString(length int) (string, error) {
-	var sb strings.Builder
-	l := 0
-
-	for {
-		if l >= length {
-			return sb.String(), nil
-		}
-		num, err := rand.Int(rand.Reader, big.NewInt(int64(127)))
-		if err != nil {
-			return "", err
-		}
-		n := num.Int64()
-		// Make sure that the number/byte/letter is inside
-		// the range of printable ASCII characters (excluding space and DEL)
-		if n > 32 && n < 127 {
-			sb.WriteRune(rune(n))
-			l++
+	result := make([]byte, length)
+	_, err := rand.Read(result)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < length; i++ {
+		result[i] &= 0x7F
+		for result[i] < 32 || result[i] == 127 {
+			_, err = rand.Read(result[i : i+1])
+			if err != nil {
+				return "", err
+			}
+			result[i] &= 0x7F
 		}
 	}
+	return string(result), nil
 }
 
 // RotateKey rotates the key.
