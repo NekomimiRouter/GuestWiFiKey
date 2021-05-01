@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"log"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"layeh.com/radius/rfc2865"
 	"layeh.com/radius/rfc2868"
 	"layeh.com/radius/vendors/aruba"
+
+	"github.com/brianium/mnemonic"
 )
 
 // GuestWirelessNetworkCredentialServer implements the RADIUS server
@@ -45,43 +46,25 @@ type GuestWirelessNetworkFrontendModel struct {
 	NetworkPSK string
 }
 
-// GenerateRandomASCIIString returns a securely generated random ASCII string.
-// It reads random numbers from crypto/rand and searches for printable characters.
-// It will return an error if the system's secure random number generator fails to
-// function correctly, in which case the caller must not continue.
-func GenerateRandomASCIIString(length int) (string, error) {
-	result := make([]byte, length)
-	_, err := rand.Read(result)
-	if err != nil {
-		return "", err
-	}
-	for i := 0; i < length; i++ {
-		result[i] &= 0x7F
-		for result[i] < 32 || result[i] == 127 {
-			_, err = rand.Read(result[i : i+1])
-			if err != nil {
-				return "", err
-			}
-			result[i] &= 0x7F
-		}
-	}
-	return string(result), nil
-}
-
 // RotateKey rotates the key.
 func (srv *GuestWirelessNetworkCredentialServer) RotateKey() error {
 	srv.KeyUpdateMutex.Lock()
 
-	// WPA2 PSK max length is 16 ASCII characters
-	key, err := GenerateRandomASCIIString(16)
-	if err != nil {
-		srv.KeyUpdateMutex.Unlock()
-		return err
+	for {
+		m, err := mnemonic.NewRandom(256, mnemonic.English)
+		if err != nil {
+			srv.KeyUpdateMutex.Unlock()
+			return err
+		}
+
+		sentence := m.Sentence()
+		if len(sentence) < 63 {
+			srv.TemporaryPsk = m.Sentence()
+			break
+		}
 	}
 
-	srv.TemporaryPsk = key
 	srv.LastUpdate = time.Now()
-
 	srv.KeyUpdateMutex.Unlock()
 	return nil
 }
