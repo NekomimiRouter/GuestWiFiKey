@@ -125,6 +125,7 @@ func (srv *GuestWirelessNetworkCredentialServer) Initialize(radiusPSK string, ne
 			log.Printf("[RADIUS][Warn] Incoming RADIUS request from %v don't have valid identity. Rejected", r.RemoteAddr)
 		} else {
 			log.Printf("[RADIUS] Issuing RADIUS response from %v to AP %v", macIdentity, r.RemoteAddr)
+			responsePacket = r.Response(radius.CodeAccessAccept)
 
 			srv.KeyUpdateMutex.RLock()
 			// For Cisco AiroNet/Meraki
